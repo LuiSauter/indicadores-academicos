@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import useSWRMutation from 'swr/mutation'
 import useSWR from 'swr'
 import { type ResponseError } from '@/utils/response-error.utils'
 import { createResource, createResourceWithImage, deleteResource, getAllResource, getResource, updateResource } from '@/services/crud.service'
 import { buildUrl } from '@/utils/api.utils'
 // import { filterStateDefault, useFilterData } from './useFilterData'
-export interface ApiResponse<T = unknown> {
+export interface ApiResponse<T = any> {
   statusCode?: number
   message?: string | string[]
   error?: string
@@ -22,10 +23,10 @@ interface ParamResurce {
 
 const useCreateResource = <TData>({ endpoint, query, isImage, isGet }: ParamResurce) => {
   const url = buildUrl({ endpoint, query })
-  const { trigger, isMutating, error, data } = useSWRMutation<unknown, ResponseError, string, TData>(
+  const { trigger, isMutating, error, data } = useSWRMutation<any, ResponseError, string, TData>(
     url, isGet ? getResource : isImage ? createResourceWithImage : createResource
   )
-  return { createResource: trigger, isMutating, error, data }
+  return { createResource: trigger, isMutating, error, data: data as any[] }
 }
 
 const useGetResource = <TData>({ endpoint, id, query }: ParamResurce) => {

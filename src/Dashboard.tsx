@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Drawer, DrawerClose, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { ChartNoAxesCombined, CheckCheckIcon, ChevronsUpDownIcon, Filter } from 'lucide-react'
 import { useState } from "react"
@@ -20,40 +19,22 @@ import { cn } from "./lib/utils"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./components/ui/command"
 import { useCreateResource, useGetAllResource } from "./hook/useApiResource"
 import { filterStateDefault, useFilterData } from "./hook/useFilterData"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./components/ui/chart"
-import { ChartData, useDynamicBarChartData } from "./hook/useDynamicBar"
-// Mock data - replace with actual data from your backend
-const mockData = [
-  { id: "145-5", name: "ADMINISTRACION EDUCATIVA", enrolled: 11 },
-  { id: "145-9", name: "CIENCIAS DE LA EDUCACION", enrolled: 64 },
-  { id: "145-A", name: "CIENCIAS DE LA EDUCACION", enrolled: 287 },
-  { id: "145-B", name: "ADMINISTRACION EDUCATIVA", enrolled: 12 },
-  { id: "145-E", name: "CIENCIAS DE LA EDUCACION", enrolled: 38 },
-  { id: "145-N", name: "CIENCIAS DE LA EDUCACION", enrolled: 1325 },
-  { id: "146-1", name: "CIENCIAS DE LA COMUNICACION", enrolled: 1255 },
-  { id: "146-E", name: "CIENCIAS DE LA COMUNICACION", enrolled: 571 },
-  { id: "147-2", name: "SOCIOLOGIA", enrolled: 267 },
-  { id: "148-1", name: "PSICOLOGIA", enrolled: 1994 },
-  { id: "149-1", name: "GESTION DEL TURISMO", enrolled: 768 },
-  { id: "242-4", name: "LICENCIATURA EN INGLES", enrolled: 1 },
-  { id: "242-7", name: "LENGUAS MODERNAS Y FILOLOGIA H", enrolled: 645 },
-  { id: "242-8", name: "LENGUAS MODERNAS Y FILOLOGIA H", enrolled: 46 },
-  { id: "242-9", name: "LENGUAS MODERNAS Y FILOLOGIA H", enrolled: 51 },
-  { id: "405-1", name: "ACTIVIDAD FISICA", enrolled: 1 },
-  { id: "405-2", name: "ACTIVIDAD FISICA", enrolled: 470 },
-]
+import { ChartConfig } from "./components/ui/chart"
+import { BarChartComponent } from "./BarChart"
+import { MultipleBarChartComponent } from "./MultipleBarChart"
+import { MixedBarChartComponent } from "./MixedBarChart"
 
-// const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
 
-export const description =
-  "A products dashboard with a sidebar navigation and a main content area. The dashboard has a header with a search input and a user menu. The sidebar has a logo, navigation links, and a card with a call to action. The main content area shows an empty state with a call to action."
+// export const description =
+//   "A products dashboard with a sidebar navigation and a main content area. The dashboard has a header with a search input and a user menu. The sidebar has a logo, navigation links, and a card with a call to action. The main content area shows an empty state with a call to action."
 
 const formSchema = z.object({
   indicator: z.string({ required_error: 'El indicador es requerido' }),
-  period: z.string(),
-  modalidad: z.string(),
-  locality: z.string(),
-  faculty: z.string(),
+  period: z.string({ required_error: 'El periodo es requerido' }),
+  modalidad: z.string({ required_error: 'La modalidad es requerida' }),
+  locality: z.string({ required_error: 'La localidad es requerida' }),
+  faculty: z.string({ required_error: 'La facultad es requerida' }),
 })
 
 interface IndicatorForm {
@@ -197,7 +178,7 @@ const dataMart: Indicator[] = [
       modalidad: false,
       career: false,
       indicators: ['egresados'],
-      api: 'facaulties',
+      api: 'faculties',
     }
   },
   {
@@ -370,24 +351,68 @@ const dataMart: Indicator[] = [
   }
 ]
 
-const chartConfig = {
-  sum_t_inscritos: { label: "Total inscritos", color: "hsl(var(--chart-3))" },
-  // Agrega más configuraciones según las necesidades
+interface DynamicTableProps<T> {
+  data: T[];
+}
+
+const DynamicTable = <T extends Record<string, any>>({ data }: DynamicTableProps<T>) => {
+  if (data.length === 0) {
+    return <p>No hay datos disponibles</p>;
+  }
+
+  // const headers = Object.keys(data[0]);
+  const headers = ["Etiquetas de la fila", ...data[0].values.map((item: any) => item.label)]
+  const bodyData = [
+    ...data.map((item: any) => {
+      return {
+        "Etiquetas de la fila": item.label,
+        ...item.values.reduce((acc: any, item: any) => {
+          acc[item.label] = item.value
+          return acc
+        }, {})
+      }
+    })
+  ]
+  return (
+    <table style={{ width: '100%' }}>
+      <thead>
+        <tr>
+          {headers.map((header) => (
+            <th key={header} className="border px-4 py-2 text-left">{header}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {bodyData.map((row, rowIndex) => (
+          <tr key={rowIndex}>
+            {headers.map((header) => (
+              <td key={header} className="border px-4 py-2">{row[header]}</td>
+            ))}
+          </tr>
+        ))}
+        {/* agrega una fila para el total */}
+        <tr>
+          <td className="border px-4 py-2 font-bold">Total</td>
+          {headers.slice(1).map((header) => (
+            <td key={header} className="border px-4 py-2 font-bold">
+              {
+                bodyData.reduce((acc, item) => {
+                  acc += Number(item[header])
+                  return acc
+                }
+                  , 0)
+              }
+            </td>
+          ))}
+        </tr>
+      </tbody>
+    </table>
+  );
 };
 
 export function Dashboard() {
-  const [filteredData] = useState(mockData)
-  // const [modalidad, setModalidad] = useState("Todas")
-  // const [facultad, setFacultad] = useState("08 HUMANIDADES")
-  // const [periodo, setPeriodo] = useState("2020-1")
-  // const [localidad, setLocalidad] = useState("Todas")
   const [indicator, setIndicator] = useState<IndicatorForm | null>(null)
-  // const handleFilter = () => {
-  //   // Implement actual filtering logic here
-  //   // This is a placeholder that doesn't actually filter
-  //   setFilteredData(mockData)
-  // }
-
+  const [title, setTitle] = useState('Estudiantes inscritos por...')
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -399,35 +424,37 @@ export function Dashboard() {
   })
 
 
-  const { allResource: facultades } = useGetAllResource({ endpoint: "faculties" })
-  const { allResource: semesters } = useGetAllResource({ endpoint: "semesters" })
-  const { allResource: localities } = useGetAllResource({ endpoint: "localities" })
+  const { allResource: facultades, isLoading: isLoadingFaculties } = useGetAllResource({ endpoint: "faculties" })
+  const { allResource: semesters, isLoading: isLoadingSemesters } = useGetAllResource({ endpoint: "semesters" })
+  const { allResource: localities, isLoading: isLoadingLocalities } = useGetAllResource({ endpoint: "localities" })
   // const { allResource: careers } = useGetAllResource({ endpoint: "careers" })
-  const { allResource: modes } = useGetAllResource({ endpoint: "modes" })
+  const { allResource: modes, isLoading: isLoadingModes } = useGetAllResource({ endpoint: "modes" })
   const { filterOptions, queryParams, setFilterOptions } = useFilterData(filterStateDefault)
-  const { createResource: GetIndicator, data: filterLocalities, isMutating } = useCreateResource({ endpoint: "filters/localities", isGet: true, query: queryParams })
 
-  // const [graph, setGarph] = useState(null)
+  const { createResource: GetLocalities } = useCreateResource({ endpoint: "filters/localities", isGet: true, query: queryParams })
+  const { createResource: GetFaculties } = useCreateResource({ endpoint: "filters/faculties", isGet: true, query: queryParams })
+  const { createResource: GetCareers } = useCreateResource({ endpoint: "filters/careers", isGet: true, query: queryParams })
+  const { createResource: GetModes } = useCreateResource({ endpoint: "filters/modes", isGet: true, query: queryParams })
+  const { createResource: GetSemesters } = useCreateResource({ endpoint: "filters/semesters", isGet: true, query: queryParams })
+
+  const [chartState, setChartState] = useState<{ label: string; values: { label: string; value: number }[] }[]>([])
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    console.log({ data, indicator, filterOptions, queryParams })
+    console.log(data)
     if (indicator?.api === 'localities') {
-      GetIndicator().then(res => console.log(res)).catch(console.log)
+      GetLocalities().then(res => setChartState(res)).catch(console.log)
+    } else if (indicator?.api === 'faculties') {
+      GetFaculties().then(res => setChartState(res)).catch(console.log)
+    } else if (indicator?.api === 'semesters') {
+      GetSemesters().then(res => setChartState(res)).catch(console.log)
+    } else if (indicator?.api === 'modes') {
+      GetModes().then(res => setChartState(res)).catch(console.log)
+    } else if (indicator?.api === 'careers') {
+      GetCareers().then(res => setChartState(res)).catch(console.log)
     }
   }
 
-  const chartData = useDynamicBarChartData({
-    rawData: filterLocalities as ChartData[] ?? [] as ChartData[],
-    xKey: "localityName", // Esta clave cambiará dependiendo de los datos
-    yKey: "sum_t_inscritos", // También cambiará según los datos
-    // config: Array(filterLocalities).reduce((acc: ChartConfig, item: any, index: number) => {
-    //   acc[item.localityName] = { label: 'Inscritos', color: COLORS[index % COLORS.length] }
-    //   return acc
-    // }, {})
-    config: chartConfig
-  });
-
-  console.log(chartData)
+  console.log(chartState.length > 0 && chartState[0].values.map((item: any) => item.label))
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[300px_1fr] lg:grid-cols-[390px_1fr]">
@@ -462,7 +489,7 @@ export function Dashboard() {
                             >
                               {field.value
                                 ? (<span className='text-ellipsis whitespace-nowrap overflow-hidden'>
-                                  {dataMart?.find((item) => item.value === field.value)?.label}
+                                  {dataMart?.find((item) => item.label === field.value)?.label}
                                 </span>)
                                 : <span className='text-light-text-secondary dark:text-dark-text-secondary text-ellipsis whitespace-nowrap overflow-hidden'>Seleccionar un indicador</span>}
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -480,16 +507,21 @@ export function Dashboard() {
                                     value={item.value}
                                     key={item.id}
                                     onSelect={() => {
-                                      form.setValue('indicator', item.value)
+                                      form.setValue('indicator', item.label)
+                                      form.setValue('faculty', '')
+                                      form.setValue('locality', '')
+                                      form.setValue('modalidad', '')
+                                      form.setValue('period', '')
                                       setIndicator(item.form)
-                                      // setFilterOptions(filterStateDefault)
+                                      setTitle(item.label)
                                       setFilterOptions({ indicatorAttributes: item.form.indicators })
+
                                     }}
                                   >
                                     <CheckCheckIcon
                                       className={cn(
                                         'mr-2 h-4 w-4',
-                                        item.value === field.value ? 'opacity-100' : 'opacity-0'
+                                        item.label === field.value ? 'opacity-100' : 'opacity-0'
                                       )}
                                     />
                                     {item.label}
@@ -506,7 +538,7 @@ export function Dashboard() {
                 />
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                  {indicator?.modalidad && <FormField
+                  {indicator?.modalidad && !isLoadingModes && <FormField
                     control={form.control}
                     name="modalidad"
                     defaultValue={""}
@@ -517,7 +549,7 @@ export function Dashboard() {
                           <Select
                             onValueChange={(value) => {
                               field.onChange(value)
-                              setFilterOptions({ ...filterOptions, modeName: value })
+                              setFilterOptions({ ...filterOptions, modeName: value === 'todos' ? '' : value })
                             }}
                             value={field.value}
                             name={field.name}
@@ -542,7 +574,7 @@ export function Dashboard() {
                     )}
                   />}
 
-                  {indicator?.locality && <FormField
+                  {indicator?.locality && !isLoadingLocalities && <FormField
                     control={form.control}
                     name="locality"
                     defaultValue={""}
@@ -553,7 +585,7 @@ export function Dashboard() {
                           <Select
                             onValueChange={(value) => {
                               field.onChange(value)
-                              setFilterOptions({ ...filterOptions, localidadName: value })
+                              setFilterOptions({ ...filterOptions, localidadName: value === 'todos' ? '' : value })
                             }}
                             value={field.value}
                             name={field.name}
@@ -577,7 +609,7 @@ export function Dashboard() {
                       </FormItem>
                     )}
                   />}
-                  {indicator?.period && <FormField
+                  {indicator?.period && !isLoadingSemesters && <FormField
                     control={form.control}
                     name="period"
                     defaultValue={""}
@@ -588,7 +620,7 @@ export function Dashboard() {
                           <Select
                             onValueChange={(value) => {
                               field.onChange(value)
-                              setFilterOptions({ ...filterOptions, semesterYear: value.split('-')[0], semesterPeriod: value.split('-')[1] })
+                              setFilterOptions({ ...filterOptions, semesterYear: value === 'todos' ? '' : value.split('-')[0], semesterPeriod: value === 'todos' ? '' : value.split('-')[1] })
                             }}
                             value={field.value}
                             name={field.name}
@@ -613,7 +645,7 @@ export function Dashboard() {
                     )}
                   />}
 
-                  {indicator?.faculty && <div className="col-span-2">
+                  {indicator?.faculty && !isLoadingFaculties && <div className="col-span-2">
                     <FormField
                       control={form.control}
                       name="faculty"
@@ -625,7 +657,7 @@ export function Dashboard() {
                             <Select
                               onValueChange={(value) => {
                                 field.onChange(value)
-                                setFilterOptions({ ...filterOptions, facultyName: value })
+                                setFilterOptions({ ...filterOptions, facultyName: value === 'todos' ? '' : value })
                               }}
                               value={field.value}
                               name={field.name}
@@ -704,7 +736,7 @@ export function Dashboard() {
                                     >
                                       {field.value
                                         ? (<span className='text-ellipsis whitespace-nowrap overflow-hidden'>
-                                          {dataMart?.find((item) => item.value === field.value)?.label}
+                                          {dataMart?.find((item) => item.label === field.value)?.label}
                                         </span>)
                                         : <span className='text-light-text-secondary dark:text-dark-text-secondary text-ellipsis whitespace-nowrap overflow-hidden'>Seleccionar un indicador</span>}
                                       <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -722,16 +754,21 @@ export function Dashboard() {
                                             value={item.value}
                                             key={item.id}
                                             onSelect={() => {
-                                              form.setValue('indicator', item.value)
+                                              form.setValue('indicator', item.label)
+                                              form.setValue('faculty', '')
+                                              form.setValue('locality', '')
+                                              form.setValue('modalidad', '')
+                                              form.setValue('period', '')
                                               setIndicator(item.form)
-                                              // setFilterOptions(filterStateDefault)
+                                              setTitle(item.label)
                                               setFilterOptions({ indicatorAttributes: item.form.indicators })
+
                                             }}
                                           >
                                             <CheckCheckIcon
                                               className={cn(
                                                 'mr-2 h-4 w-4',
-                                                item.value === field.value ? 'opacity-100' : 'opacity-0'
+                                                item.label === field.value ? 'opacity-100' : 'opacity-0'
                                               )}
                                             />
                                             {item.label}
@@ -748,7 +785,7 @@ export function Dashboard() {
                         />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                          {indicator?.modalidad && <FormField
+                          {indicator?.modalidad && !isLoadingModes && <FormField
                             control={form.control}
                             name="modalidad"
                             defaultValue={""}
@@ -759,7 +796,7 @@ export function Dashboard() {
                                   <Select
                                     onValueChange={(value) => {
                                       field.onChange(value)
-                                      setFilterOptions({ ...filterOptions, modeName: value })
+                                      setFilterOptions({ ...filterOptions, modeName: value === 'todos' ? '' : value })
                                     }}
                                     value={field.value}
                                     name={field.name}
@@ -784,7 +821,7 @@ export function Dashboard() {
                             )}
                           />}
 
-                          {indicator?.locality && <FormField
+                          {indicator?.locality && !isLoadingLocalities && <FormField
                             control={form.control}
                             name="locality"
                             defaultValue={""}
@@ -795,7 +832,7 @@ export function Dashboard() {
                                   <Select
                                     onValueChange={(value) => {
                                       field.onChange(value)
-                                      setFilterOptions({ ...filterOptions, localidadName: value })
+                                      setFilterOptions({ ...filterOptions, localidadName: value === 'todos' ? '' : value })
                                     }}
                                     value={field.value}
                                     name={field.name}
@@ -819,7 +856,7 @@ export function Dashboard() {
                               </FormItem>
                             )}
                           />}
-                          {indicator?.period && <FormField
+                          {indicator?.period && !isLoadingSemesters && <FormField
                             control={form.control}
                             name="period"
                             defaultValue={""}
@@ -830,7 +867,7 @@ export function Dashboard() {
                                   <Select
                                     onValueChange={(value) => {
                                       field.onChange(value)
-                                      setFilterOptions({ ...filterOptions, semesterYear: value.split('-')[0], semesterPeriod: value.split('-')[1] })
+                                      setFilterOptions({ ...filterOptions, semesterYear: value === 'todos' ? '' : value.split('-')[0], semesterPeriod: value === 'todos' ? '' : value.split('-')[1] })
                                     }}
                                     value={field.value}
                                     name={field.name}
@@ -855,7 +892,7 @@ export function Dashboard() {
                             )}
                           />}
 
-                          {indicator?.faculty && <div className="col-span-2">
+                          {indicator?.faculty && !isLoadingFaculties && <div className="col-span-2">
                             <FormField
                               control={form.control}
                               name="faculty"
@@ -867,7 +904,7 @@ export function Dashboard() {
                                     <Select
                                       onValueChange={(value) => {
                                         field.onChange(value)
-                                        setFilterOptions({ ...filterOptions, facultyName: value })
+                                        setFilterOptions({ ...filterOptions, facultyName: value === 'todos' ? '' : value })
                                       }}
                                       value={field.value}
                                       name={field.name}
@@ -892,120 +929,109 @@ export function Dashboard() {
                               )}
                             /></div>}
                         </div>
-                        <Button
-                          type="submit"
-                          className="w-full"
-                        >
-                          Filtrar
-                        </Button>
+                        <DrawerFooter>
+                          <DrawerClose asChild type="button">
+                            <Button
+                              type="submit"
+                              className="w-full"
+                            >
+                              Filtrar
+                            </Button>
+                          </DrawerClose>
+                          {/* <Button>Filtrar</Button> */}
+                          <DrawerClose asChild type="button">
+                            <Button variant="outline" type="button">Cancelar</Button>
+                          </DrawerClose>
+                        </DrawerFooter>
                       </form>
                     </Form>
                   </div>
                 </div>
-                <DrawerFooter>
-                  <Button>Filtrar</Button>
-                  <DrawerClose asChild>
-                    <Button variant="outline">Cancelar</Button>
-                  </DrawerClose>
-                </DrawerFooter>
               </div>
             </DrawerContent>
           </Drawer>
         </header>
         <CardHeader>
-          <CardTitle>Estudiantes inscritos por carrera</CardTitle>
+          <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="bar" className="w-full">
+          {indicator?.indicators.length === 1 && <Tabs defaultValue="bar" className="w-full">
             <TabsList>
-              <TabsTrigger value="bar">Barras</TabsTrigger>
-              <TabsTrigger value="bar2">Barras horiz</TabsTrigger>
+              {indicator?.indicators.length === 1 && (
+                <>
+                  <TabsTrigger value="bar">Barras</TabsTrigger>
+                  <TabsTrigger value="bar2">Barras horizontal</TabsTrigger>
+                </>
+              )}
+              {/* {(indicator?.indicators?.length ?? 0) > 1 && <TabsTrigger value="Multiple-bar">Barras Multiples</TabsTrigger>} */}
             </TabsList>
+
             <TabsContent value="bar">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={filteredData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="id" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="enrolled" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
+              <BarChartComponent
+                data={
+                  indicator?.indicators.length === 1 && chartState.length > 0 ? chartState
+                    .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
+                    .map((item: any) => (
+                      { label: item.label, [item.values[0].label]: Number(item.values[0].value) }
+                    )) : []
+                }
+                title="Bar Chart - Label"
+                description="January - June 2024"
+                dataKey={
+                  indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : ''
+                }
+                labelKey="label"
+              />
             </TabsContent>
 
             <TabsContent value="bar2">
-              {!isMutating && (
-                // <ResponsiveContainer width="100%" height={400}>
-                <ChartContainer config={chartConfig}>
-                  <BarChart
-                    accessibilityLayer
-                    data={chartData}
-                    layout="vertical"
-                    margin={{
-                      left: 20,
-                    }}
-                  >
-                    <YAxis
-                      dataKey="localityName"
-                      type="category"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                      tickFormatter={(value: keyof typeof chartConfig) => chartConfig[value]?.label || value}
-                    />
-                    <XAxis dataKey="sum_t_inscritos" type="number" hide />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel />}
-                    />
-                    <Bar dataKey="sum_t_inscritos" layout="vertical" radius={5} />
-                  </BarChart>
-                </ChartContainer>
-                // </ResponsiveContainer>
-              )}
+              {indicator?.indicators.length === 1 && chartState && <MixedBarChartComponent
+                title="Bar Chart - Mixed"
+                description="January - June 2024"
+                data={
+                  chartState && chartState
+                    .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
+                    .map((item: any) => (
+                      { label: item.label, visitors: Number(item.values[0].value), fill: 'var(--color-default)' }
+                    ))
+                }
+                dataKey='visitors'
+                chartConfig={{ visitors: { label: indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : '', color: "#8884D8" } }}
+                labelKey="label"
+              />}
             </TabsContent>
 
-            {/* <TabsContent value="pie">
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={filteredData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={150}
-                    fill="#8884d8"
-                    dataKey="enrolled"
-                  >
-                    {filteredData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </TabsContent> */}
-          </Tabs>
+            {/* <TabsContent value="Multiple-bar"> */}
+            {/* </TabsContent> */}
+          </Tabs>}
+          {(indicator?.indicators ?? []).length > 1 && <MultipleBarChartComponent
+            title="Bar Chart - Multiple"
+            description="January - June 2024"
+            data={
+              chartState && chartState
+                .map((item: any) => ({
+                  label: item.label,
+                  ...item.values.reduce((acc: any, item: any) => {
+                    acc[item.label] = Number(item.value)
+                    return acc
+                  }, {})
+                  // desktop: Number(item.values[0].value),
+                  // mobile: Number(item.values[1].value)
+                }))
+            }
+            chartConfig={
+              chartState.length > 0 ? chartState[0].values.reduce((acc: any, item: any, index: number) => {
+                acc[item.label] = { label: item.label, color: COLORS[index] }
+                return acc
+              }, {}) : {} as ChartConfig
+            }
+            dataKeys={chartState.length > 0 ? chartState[0].values.map((item) => item.label) : ['']} // Claves de los diferentes conjuntos de barras
+            labelKey="label"
+          />}
 
-          <ScrollArea className="h-[300px] mt-4">
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr>
-                  <th className="px-4 py-2 text-left">Carrera</th>
-                  <th className="px-4 py-2 text-left">Inscritos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.isArray(filterLocalities) && filterLocalities.map((item: any) => (
-                  <tr key={item.id}>
-                    <td className="border px-4 py-2">{item.localityName}</td>
-                    <td className="border px-4 py-2">{item.sum_t_inscritos}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <ScrollArea className="h-full mt-4">
+            {<DynamicTable data={Array.isArray(chartState) ? chartState : []} />}
+            {/* {!isMutatingCareers && <DynamicTable data={Array.isArray(filterCareers) ? filterCareers : []} />} */}
           </ScrollArea>
         </CardContent>
       </main>

@@ -3,6 +3,11 @@
 @tailwind utilities;
 @layer base {
   :root {
-    --radius: 0.5rem
+    --radius: 0.5rem;
+    --color-green: #125427;
+    --color-red: #b91c1c;
+    --color-purple: #7e22ce;
+    --color-blue: #1d4ed8;
+    --color-default: #8884D8;
   }
 }
