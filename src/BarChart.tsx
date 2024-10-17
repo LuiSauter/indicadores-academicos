@@ -72,7 +72,7 @@ export function BarChartComponent({
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => value.slice(0, 3)} // Acorta las etiquetas (e.g., "January" a "Jan")
+                tickFormatter={(value) => value.slice(0, 5)} // Acorta las etiquetas (e.g., "January" a "Jan")
               />
               <ChartTooltip
                 content={<ChartTooltipContent />}

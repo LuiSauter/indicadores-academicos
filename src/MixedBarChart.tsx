@@ -66,7 +66,7 @@ export function MixedBarChartComponent({
               tickMargin={10}
               axisLine={false}
               tickFormatter={(value) =>
-                chartConfig[value as keyof typeof chartConfig]?.label ?? value
+                chartConfig[value as keyof typeof chartConfig]?.label ?? value.slice(0, 5)
               }
             />
             <XAxis

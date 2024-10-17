@@ -29,20 +29,10 @@ export const handleResponseErrors = async (response: Response) => {
 }
 
 export const fetchData = async (url: string, options?: RequestInit, typeBlob?: boolean) => {
-  const requestOptions: RequestInit = {
-    ...options,
-    headers: {
-      ...options?.headers,
-    }
-  }
-
+  const requestOptions: RequestInit = { ...options, headers: { ...options?.headers } }
   if (!options || (options && !(options.body instanceof FormData))) {
-    requestOptions.headers = {
-      ...requestOptions.headers,
-      'Content-Type': 'application/json'
-    }
+    requestOptions.headers = { ...requestOptions.headers, 'Content-Type': 'application/json' }
   }
-
   const response = await fetch(url, requestOptions)
   await handleResponseErrors(response)
   return !typeBlob ? await response.json() : response

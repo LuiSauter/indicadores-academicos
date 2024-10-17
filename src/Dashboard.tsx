@@ -422,12 +422,12 @@ export function Dashboard() {
       locality: "",
     }
   })
+  // const { allResource: careers } = useGetAllResource({ endpoint: "careers" })
 
 
   const { allResource: facultades, isLoading: isLoadingFaculties } = useGetAllResource({ endpoint: "faculties" })
   const { allResource: semesters, isLoading: isLoadingSemesters } = useGetAllResource({ endpoint: "semesters" })
   const { allResource: localities, isLoading: isLoadingLocalities } = useGetAllResource({ endpoint: "localities" })
-  // const { allResource: careers } = useGetAllResource({ endpoint: "careers" })
   const { allResource: modes, isLoading: isLoadingModes } = useGetAllResource({ endpoint: "modes" })
   const { filterOptions, queryParams, setFilterOptions } = useFilterData(filterStateDefault)
 
