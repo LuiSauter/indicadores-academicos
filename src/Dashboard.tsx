@@ -431,11 +431,11 @@ export function Dashboard() {
   const { allResource: modes, isLoading: isLoadingModes } = useGetAllResource({ endpoint: "modes" })
   const { filterOptions, queryParams, setFilterOptions } = useFilterData(filterStateDefault)
 
-  const { createResource: GetLocalities } = useCreateResource({ endpoint: "filters/localities", isGet: true, query: queryParams })
-  const { createResource: GetFaculties } = useCreateResource({ endpoint: "filters/faculties", isGet: true, query: queryParams })
-  const { createResource: GetCareers } = useCreateResource({ endpoint: "filters/careers", isGet: true, query: queryParams })
-  const { createResource: GetModes } = useCreateResource({ endpoint: "filters/modes", isGet: true, query: queryParams })
-  const { createResource: GetSemesters } = useCreateResource({ endpoint: "filters/semesters", isGet: true, query: queryParams })
+  const { createResource: GetLocalities, isMutating: isMutatingLocalities } = useCreateResource({ endpoint: "filters/localities", isGet: true, query: queryParams })
+  const { createResource: GetFaculties, isMutating: isMutatingFaculties } = useCreateResource({ endpoint: "filters/faculties", isGet: true, query: queryParams })
+  const { createResource: GetCareers, isMutating: isMutatingCareers } = useCreateResource({ endpoint: "filters/careers", isGet: true, query: queryParams })
+  const { createResource: GetModes, isMutating: isMutatingModes } = useCreateResource({ endpoint: "filters/modes", isGet: true, query: queryParams })
+  const { createResource: GetSemesters, isMutating: isMutatingSemesters } = useCreateResource({ endpoint: "filters/semesters", isGet: true, query: queryParams })
 
   const [chartState, setChartState] = useState<{ label: string; values: { label: string; value: number }[] }[]>([])
 
@@ -955,84 +955,87 @@ export function Dashboard() {
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          {indicator?.indicators.length === 1 && <Tabs defaultValue="bar" className="w-full">
-            <TabsList>
-              {indicator?.indicators.length === 1 && (
-                <>
-                  <TabsTrigger value="bar">Barras</TabsTrigger>
-                  <TabsTrigger value="bar2">Barras horizontal</TabsTrigger>
-                </>
-              )}
-              {/* {(indicator?.indicators?.length ?? 0) > 1 && <TabsTrigger value="Multiple-bar">Barras Multiples</TabsTrigger>} */}
-            </TabsList>
+          {(isMutatingCareers || isMutatingFaculties || isMutatingLocalities || isMutatingModes || isMutatingSemesters) ? <span>Obteniendo datos del servidor, espere un momento...</span> :
+            <>
+              {indicator?.indicators.length === 1 && <Tabs defaultValue="bar" className="w-full">
+                <TabsList>
+                  {indicator?.indicators.length === 1 && (
+                    <>
+                      <TabsTrigger value="bar">Barras</TabsTrigger>
+                      <TabsTrigger value="bar2">Barras horizontal</TabsTrigger>
+                    </>
+                  )}
+                  {/* {(indicator?.indicators?.length ?? 0) > 1 && <TabsTrigger value="Multiple-bar">Barras Multiples</TabsTrigger>} */}
+                </TabsList>
 
-            <TabsContent value="bar">
-              <BarChartComponent
-                data={
-                  indicator?.indicators.length === 1 && chartState.length > 0 ? chartState
-                    .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
-                    .map((item: any) => (
-                      { label: item.label, [item.values[0].label]: Number(item.values[0].value) }
-                    )) : []
-                }
-                title="Bar Chart - Label"
-                description="January - June 2024"
-                dataKey={
-                  indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : ''
-                }
-                labelKey="label"
-              />
-            </TabsContent>
+                <TabsContent value="bar">
+                  <BarChartComponent
+                    data={
+                      indicator?.indicators.length === 1 && chartState.length > 0 ? chartState
+                        .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
+                        .map((item: any) => (
+                          { label: item.label, [item.values[0].label]: Number(item.values[0].value) }
+                        )) : []
+                    }
+                    title="Bar Chart - Label"
+                    description="January - June 2024"
+                    dataKey={
+                      indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : ''
+                    }
+                    labelKey="label"
+                  />
+                </TabsContent>
 
-            <TabsContent value="bar2">
-              {indicator?.indicators.length === 1 && chartState && <MixedBarChartComponent
-                title="Bar Chart - Mixed"
+                <TabsContent value="bar2">
+                  {indicator?.indicators.length === 1 && chartState && <MixedBarChartComponent
+                    title="Bar Chart - Mixed"
+                    description="January - June 2024"
+                    data={
+                      chartState && chartState
+                        .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
+                        .map((item: any) => (
+                          { label: item.label, visitors: Number(item.values[0].value), fill: 'var(--color-default)' }
+                        ))
+                    }
+                    dataKey='visitors'
+                    chartConfig={{ visitors: { label: indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : '', color: "#8884D8" } }}
+                    labelKey="label"
+                  />}
+                </TabsContent>
+
+                {/* <TabsContent value="Multiple-bar"> */}
+                {/* </TabsContent> */}
+              </Tabs>}
+              {(indicator?.indicators ?? []).length > 1 && <MultipleBarChartComponent
+                title="Bar Chart - Multiple"
                 description="January - June 2024"
                 data={
                   chartState && chartState
-                    .sort((a: any, b: any) => Number(b.values[0].value) - Number(a.values[0].value))
-                    .map((item: any) => (
-                      { label: item.label, visitors: Number(item.values[0].value), fill: 'var(--color-default)' }
-                    ))
+                    .map((item: any) => ({
+                      label: item.label,
+                      ...item.values.reduce((acc: any, item: any) => {
+                        acc[item.label] = Number(item.value)
+                        return acc
+                      }, {})
+                      // desktop: Number(item.values[0].value),
+                      // mobile: Number(item.values[1].value)
+                    }))
                 }
-                dataKey='visitors'
-                chartConfig={{ visitors: { label: indicator?.indicators.length === 1 && chartState.length > 0 ? chartState[0].values[0].label : '', color: "#8884D8" } }}
+                chartConfig={
+                  chartState.length > 0 ? chartState[0].values.reduce((acc: any, item: any, index: number) => {
+                    acc[item.label] = { label: item.label, color: COLORS[index] }
+                    return acc
+                  }, {}) : {} as ChartConfig
+                }
+                dataKeys={chartState.length > 0 ? chartState[0].values.map((item) => item.label) : ['']} // Claves de los diferentes conjuntos de barras
                 labelKey="label"
               />}
-            </TabsContent>
 
-            {/* <TabsContent value="Multiple-bar"> */}
-            {/* </TabsContent> */}
-          </Tabs>}
-          {(indicator?.indicators ?? []).length > 1 && <MultipleBarChartComponent
-            title="Bar Chart - Multiple"
-            description="January - June 2024"
-            data={
-              chartState && chartState
-                .map((item: any) => ({
-                  label: item.label,
-                  ...item.values.reduce((acc: any, item: any) => {
-                    acc[item.label] = Number(item.value)
-                    return acc
-                  }, {})
-                  // desktop: Number(item.values[0].value),
-                  // mobile: Number(item.values[1].value)
-                }))
-            }
-            chartConfig={
-              chartState.length > 0 ? chartState[0].values.reduce((acc: any, item: any, index: number) => {
-                acc[item.label] = { label: item.label, color: COLORS[index] }
-                return acc
-              }, {}) : {} as ChartConfig
-            }
-            dataKeys={chartState.length > 0 ? chartState[0].values.map((item) => item.label) : ['']} // Claves de los diferentes conjuntos de barras
-            labelKey="label"
-          />}
-
-          <ScrollArea className="h-full mt-4">
-            {<DynamicTable data={Array.isArray(chartState) ? chartState : []} />}
-            {/* {!isMutatingCareers && <DynamicTable data={Array.isArray(filterCareers) ? filterCareers : []} />} */}
-          </ScrollArea>
+              <ScrollArea className="h-full mt-4">
+                {<DynamicTable data={Array.isArray(chartState) ? chartState : []} />}
+                {/* {!isMutatingCareers && <DynamicTable data={Array.isArray(filterCareers) ? filterCareers : []} />} */}
+              </ScrollArea>
+            </>}
         </CardContent>
       </main>
     </div>
