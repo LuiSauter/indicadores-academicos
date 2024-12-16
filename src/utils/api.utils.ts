@@ -10,7 +10,7 @@ export const ENDPOINTS = {
   CATEGORY: '/api/category'
 }
 
-export const API_BASEURL = "https://data-mart-dy4i.onrender.com/api/"
+export const API_BASEURL = "https://goldfish-app-b5ydv.ondigitalocean.app/api/"
 export const buildUrl = ({ endpoint, id = undefined, query = undefined }: { endpoint: string, id?: string, query?: string }) => {
   return `${API_BASEURL}${endpoint}${id ? `/${id}` : ''}${query ? `?${query}` : ''}`
 }
